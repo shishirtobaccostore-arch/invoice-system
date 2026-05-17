@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>Invoice History</title>
+
+<style>
+
+body{
+    font-family: Arial;
+    background:#f5f5f5;
+    padding:20px;
+}
+
+.container{
+    max-width:1200px;
+    margin:auto;
+    background:white;
+    padding:20px;
+    border-radius:10px;
+    box-shadow:0 0 10px rgba(0,0,0,0.1);
+}
+
+h1{
+    text-align:center;
+    color:darkgreen;
+}
+
+.topbar{
+    display:flex;
+    justify-content:space-between;
+    margin-bottom:20px;
+}
+
+input{
+    padding:10px;
+    width:300px;
+    border:1px solid #ccc;
+    border-radius:5px;
+}
+
+button{
+    padding:8px 14px;
+    border:none;
+    border-radius:5px;
+    cursor:pointer;
+}
+
+.back-btn{
+    background:black;
+    color:white;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+th, td{
+    border:1px solid #ccc;
+    padding:10px;
+    text-align:center;
+}
+
+th{
+    background:#f2f2f2;
+}
+
+.action-btn{
+    margin:2px;
+}
+
+.view-btn{
+    background:#2196F3;
+    color:white;
+}
+
+.delete-btn{
+    background:red;
+    color:white;
+}
+
+.print-btn{
+    background:green;
+    color:white;
+}
+
+.developer{
+    text-align:center;
+    margin-top:20px;
+    color:gray;
+    font-size:12px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>SHISHIR TOBACCO STORES</h1>
+
+<div class="topbar">
+
+<input
+type="text"
+id="searchBox"
+placeholder="Search Invoice..."
+onkeyup="searchInvoice()">
+
+<button
+class="back-btn"
+onclick="window.location.href='Index.html'">
+
+← Back To Invoice
+
+</button>
+
+</div>
+
+<table id="historyTable">
+
+<thead>
+
+<tr>
+<th>Invoice No</th>
+<th>Date</th>
+<th>Buyer Name</th>
+<th>Vehicle No</th>
+<th>Amount</th>
+<th>Actions</th>
+</tr>
+
+</thead>
+
+<tbody id="historyBody">
+
+</tbody>
+
+</table>
+
+<div class="developer">
+Developed by Bharat Bhushan
+</div>
+
+</div>
+
+<script>
+
+const SHEET_API =
+"https://script.google.com/macros/s/AKfycbwPQAkUyFTMgV3S6eB6gbp-a2UOie7TDww_5BQ34iuWUIRd3RAFkPNWlXW-MdKJ84hUiw/exec";
+
+async function loadInvoices(){
+
+    try{
+
+        let response = await fetch(SHEET_API);
+
+        let data = await response.json();
+
+        data.reverse();
+
+        window.currentInvoices = data;
+
+        let body =
+        document.getElementById("historyBody");
+
+        body.innerHTML = "";
+
+        data.forEach((row,index)=>{
+
+            body.innerHTML += `
+
+            <tr>
+
+            <td>${row[0]}</td>
+
+            <td>${new Date(row[1]).toLocaleDateString('en-IN')}</td>
+
+            <td>${row[2]}</td>
+
+            <td>${row[3]}</td>
+
+            <td>${row[4]}</td>
+
+            <td>
+
+            <button
+            class="action-btn print-btn"
+            onclick="printInvoice(${index})">
+
+            Print
+
+            </button>
+
+            <button
+            class="action-btn delete-btn"
+            onclick="deleteInvoice(${index})">
+
+            Delete
+
+            </button>
+
+            </td>
+
+            </tr>
+            `;
+        });
+
+    }catch(error){
+
+        alert("Unable to load invoices");
+
+        console.log(error);
+    }
+}
+
+function searchInvoice(){
+
+    let input =
+    document.getElementById("searchBox")
+    .value.toLowerCase();
+
+    let rows =
+    document.querySelectorAll("#historyBody tr");
+
+    rows.forEach(row=>{
+
+        let text =
+        row.innerText.toLowerCase();
+
+        row.style.display =
+        text.includes(input)
+        ? ""
+        : "none";
+    });
+}
+
+function printInvoice(index){
+
+    let responseData =
+    window.currentInvoices || [];
+
+    let selectedInvoice =
+    responseData[index];
+
+
+
+    // TRY FULL JSON FIRST
+    let actualInvoice = {};
+
+    try{
+
+        let parsedData =
+JSON.parse(selectedInvoice[5]);
+
+if(typeof parsedData === "string"){
+
+    actualInvoice =
+    JSON.parse(parsedData);
+
+}else{
+
+    actualInvoice =
+    parsedData;
+}
+
+    }catch(error){
+
+        console.log("Old invoice format");
+    }
+
+
+
+    // FALLBACK FOR OLD RECORDS
+    actualInvoice.invoiceNo =
+    actualInvoice.invoiceNo ||
+    selectedInvoice[0];
+
+    actualInvoice.date =
+    actualInvoice.date ||
+    selectedInvoice[1];
+
+    actualInvoice.buyerName =
+    actualInvoice.buyerName ||
+    selectedInvoice[2];
+
+    actualInvoice.vehicleNo =
+    actualInvoice.vehicleNo ||
+    selectedInvoice[3];
+
+    actualInvoice.amount =
+    actualInvoice.amount ||
+    selectedInvoice[4];
+
+
+
+    localStorage.setItem(
+    "reprintInvoice",
+    JSON.stringify(actualInvoice)
+    );
+
+    window.location.href =
+    "Index.html";
+}
+async function deleteInvoice(index){
+
+    let confirmDelete =
+    confirm("Delete this invoice?");
+
+    if(!confirmDelete) return;
+
+    let selectedInvoice =
+    window.currentInvoices[index];
+
+    let invoiceNo =
+    selectedInvoice[0];
+
+    try{
+
+        let response =
+        await fetch(
+
+        SHEET_API,
+
+        {
+            method:"POST",
+
+            body: new URLSearchParams({
+
+    action:"delete",
+    invoiceNo:invoiceNo
+})
+
+        });
+
+        let result =
+        await response.json();
+
+        if(result.success){
+
+            alert("Invoice Deleted");
+
+            loadInvoices();
+
+        }else{
+
+            alert("Delete Failed");
+        }
+
+    }catch(error){
+
+        console.log(error);
+
+        alert("Error deleting invoice");
+    }
+}
+
+let loggedIn =
+localStorage.getItem("invoiceLoggedIn");
+
+if(loggedIn !== "true") {
+
+    window.location.href =
+    "index.html";
+
+} else {
+
+    loadInvoices();
+}
+
+</script>
+
+</body>
+</html>
